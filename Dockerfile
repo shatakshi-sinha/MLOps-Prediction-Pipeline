@@ -18,7 +18,7 @@ COPY --from=builder /install /usr/local
 COPY config/ config/
 COPY src/ src/
 COPY data/ data/
-COPY models/ models/
+RUN mkdir -p /app/models /app/monitoring
 
 # Expose the API port
 EXPOSE 8000

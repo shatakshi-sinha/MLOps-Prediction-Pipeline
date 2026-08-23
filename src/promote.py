@@ -37,11 +37,17 @@ def _get_production_version(client: MlflowClient, model_name: str):
 
 
 def _get_latest_version(client: MlflowClient, model_name: str):
-    """Return the newest registered model version."""
+    """Return the newest registered version that is not production."""
+    prod = _get_production_version(client, model_name)
     versions = client.search_model_versions(f"name='{model_name}'")
-    if not versions:
-        return None
-    return max(versions, key=lambda v: int(v.version))
+    candidates = [v for v in versions if prod is None or str(v.version) != str(prod.version)]
+    return max(candidates, key=lambda v: int(v.version)) if candidates else None
+
+
+def _get_previous_version(client: MlflowClient, model_name: str, current_version: str):
+    versions = client.search_model_versions(f"name='{model_name}'")
+    prior = [v for v in versions if int(v.version) < int(current_version)]
+    return max(prior, key=lambda v: int(v.version)) if prior else None
 
 
 def _get_f1(client: MlflowClient, run_id: str) -> float:
@@ -61,7 +67,7 @@ def promote(model_name: str | None = None):
     candidate = _get_latest_version(client, model_name)
     if candidate is None:
         logger.error("No candidate model found in registry '%s'", model_name)
-        sys.exit(1)
+        return False
 
     candidate_f1 = _get_f1(client, candidate.run_id)
     logger.info(
@@ -107,14 +113,15 @@ def rollback(model_name: str | None = None):
     prod = _get_production_version(client, model_name)
     if prod is None:
         logger.error("No production model to roll back from.")
-        sys.exit(1)
+        return False
 
     current_ver = int(prod.version)
-    if current_ver <= 1:
-        logger.error("No prior version to roll back to.")
-        sys.exit(1)
+    previous = _get_previous_version(client, model_name, str(current_ver))
+    if previous is None:
+        logger.error("No prior registered version to roll back to.")
+        return False
 
-    prev_ver = str(current_ver - 1)
+    prev_ver = str(previous.version)
     client.set_registered_model_alias(model_name, "production", prev_ver)
     logger.info(
         "ROLLBACK: production reverted from v%s → v%s  ✓",

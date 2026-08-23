@@ -22,6 +22,8 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import (
     classification_report,
+    confusion_matrix,
+    average_precision_score,
     f1_score,
     precision_score,
     recall_score,
@@ -151,7 +153,8 @@ def train(data_dir: str | None = None):
 
         val_metrics = {
             "val_auc": roc_auc_score(y_val, y_proba_val),
-            "val_f1": f1_score(y_val, y_pred_val),
+            "val_pr_auc": average_precision_score(y_val, y_proba_val),
+            "val_f1": f1_score(y_val, y_pred_val, zero_division=0),
             "val_precision": precision_score(y_val, y_pred_val),
             "val_recall": recall_score(y_val, y_pred_val),
             "optimal_threshold": best_thresh,
@@ -180,13 +183,18 @@ def train(data_dir: str | None = None):
         mlflow.log_metrics(all_metrics)
 
         # Save & log artifacts
-        models_dir = Path("models")
-        models_dir.mkdir(exist_ok=True)
+        models_dir = settings.paths.absolute("models")
+        models_dir.mkdir(parents=True, exist_ok=True)
         joblib.dump(pipeline, models_dir / "pipeline.joblib")
         joblib.dump(model, models_dir / "model.joblib")
         joblib.dump(best_thresh, models_dir / "threshold.joblib")
         mlflow.log_artifact(str(models_dir / "pipeline.joblib"))
+        mlflow.log_artifact(str(models_dir / "model.joblib"))
         mlflow.log_artifact(str(models_dir / "threshold.joblib"))
+        report = classification_report(y_val, y_pred_val, output_dict=True, zero_division=0)
+        pd.DataFrame(report).T.to_csv(models_dir / "classification_report.csv")
+        pd.DataFrame(confusion_matrix(y_val, y_pred_val)).to_csv(models_dir / "confusion_matrix.csv", index=False)
+        mlflow.log_artifacts(str(models_dir), artifact_path="evaluation")
 
         # Bug Fix #3 — single registry entry
         mlflow.xgboost.log_model(
