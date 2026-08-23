@@ -6,9 +6,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from scipy.stats import ks_2samp, wasserstein_distance
-from evidently import ColumnMapping
-from evidently.metric_preset import DataDriftPreset
-from evidently.report import Report
+from evidently.legacy.pipeline.column_mapping import ColumnMapping
+from evidently.presets import DataDriftPreset
+from evidently import Report
 
 from src.config import settings
 from src.data_validation import DataQualityGate, EXPECTED_COLUMNS, SETTING_NAMES, SENSOR_NAMES

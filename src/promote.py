@@ -113,15 +113,14 @@ def rollback(model_name: str | None = None):
     prod = _get_production_version(client, model_name)
     if prod is None:
         logger.error("No production model to roll back from.")
-        return False
+        sys.exit(1)
 
     current_ver = int(prod.version)
-    previous = _get_previous_version(client, model_name, str(current_ver))
-    if previous is None:
+    if current_ver <= 1:
         logger.error("No prior registered version to roll back to.")
-        return False
+        sys.exit(1)
 
-    prev_ver = str(previous.version)
+    prev_ver = str(current_ver - 1)
     client.set_registered_model_alias(model_name, "production", prev_ver)
     logger.info(
         "ROLLBACK: production reverted from v%s → v%s  ✓",

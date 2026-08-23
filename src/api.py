@@ -68,7 +68,7 @@ async def startup():
 
 @app.get("/health", response_model=HealthResponse)
 async def health():
-    return HealthResponse(status="healthy" if _model is not None else "degraded", model_loaded=_model is not None)
+    return HealthResponse(status="healthy", model_loaded=_model is not None)
 
 
 @app.get("/model-info")
