@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  # ── FastAPI Prediction Service ──────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cmapss-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./monitoring:/app/monitoring
+    environment:
+      - CMAPSS_MLFLOW__TRACKING_URI=http://mlflow:5000
+    depends_on:
+      - mlflow
+    restart: unless-stopped
+
+  # ── MLflow Tracking Server ──────────────────────────────────────
+  mlflow:
+    image: python:3.11-slim
+    container_name: cmapss-mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/app/mlruns
+      - ./models:/app/models
+    working_dir: /app
+    command: >
+      bash -c "pip install mlflow -q &&
+               mlflow server
+               --host 0.0.0.0
+               --port 5000
+               --backend-store-uri sqlite:///mlflow.db
+               --default-artifact-root /app/mlruns"
+    restart: unless-stopped
